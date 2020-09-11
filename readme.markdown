@@ -15,7 +15,7 @@ Boozle has several features (some unique):
   - **Meshing**: Objects may be proxied between multiple nodes. This means that node A can receive an object from node B that originated on node C. Three-way introduction (where possible) is also underway.
   - **Expression-based Execution Architecture**: Avoids round-trips for pipelined RPC operations (e.g., `object.do_thing(using.this())` is executed as a single expression).
   - **Rich Type System**: RPC protocol types can have generic type arguments.
-  - **Streams**: Streams (through the `Source<T>` and `Sink<T>` types) can be both a parameter and return value on a RPC method. Boozle's architecture is flexible enough that Streams are just regular boozle objects defined in a `.boozle` file!
+  - **Streams**: Streams (through the `Source<T>` and `Sink<T>` types) can be both a parameter and return value on a RPC method. Boozle's architecture is flexible enough that `Source<T>` and `Sink<T>` are just regular boozle objects defined in a `.boozle` file!
   - **Transport Agnostic**: Boozle can work over any transport that is reliable (unordered is okay).
   - **Upgradable Protocol Definitions**: Extend an existing RPC protocol without breaking older nodes.
   - **Designed for Parallelism**: Boozle is completely async and lock-free by design.
