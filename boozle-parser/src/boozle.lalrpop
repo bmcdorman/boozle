@@ -1,0 +1,84 @@
+use crate::ast;
+
+grammar;
+
+pub Id: ast::Id = <text: r"[a-zA-Z][a-zA-Z0-9]*"> => ast::Id { text: text.to_string() };
+
+pub Mod: ast::Mod = {
+  "mod" <name: Id> <decls: DeclBlock> => ast::Mod {
+    name,
+    decls: Some(decls)
+  },
+  "mod" <name: Id> ";" => ast::Mod {
+    name,
+    decls: None
+  }
+};
+
+pub Path: ast::Path = {
+  <components: (Id ".")*> <last: Id> => ast::Path {
+    components: {
+      let mut components = components.into_iter().map(|component| component.0).collect::<Vec<ast::Id>>();
+      components.push(last);
+      components
+    }
+  }
+}
+
+pub Type: ast::Type = {
+  <path: Path> => ast::Type {
+    path
+  }
+};
+
+pub Param: ast::Param = {
+  <name: Id> ":" <ty: Type> => ast::Param {
+    name,
+    ty
+  }
+};
+
+pub Fn: ast::Fn = {
+  "fn" <name: Id> "(" <params: Param* > ")"  => ast::Fn {
+    name,
+    params,
+    result: None
+  },
+  "fn" <name: Id> "(" <params: Param* > ")" "->" <result: Type>  => ast::Fn {
+    name,
+    params,
+    result: Some(result)
+  },
+};
+
+pub Trait: ast::Trait = {
+  "trait" <name: Id> "{" <members: (Fn ";")* > "}"  => ast::Trait {
+    name,
+    members: members.into_iter().map(|member| member.0).collect()
+  }
+};
+
+pub Svc: ast::Svc = "svc" <name: Id> ":" <ty: Type> ";" => ast::Svc {
+  name,
+  ty
+};
+
+pub Use: ast::Use = "use" <path: Path> ";" => ast::Use {
+  path
+};
+
+
+pub DeclBlock: Vec<ast::Decl> = {
+  "{" <decls: Decl*> "}" => decls
+};
+
+pub Decl: ast::Decl = {
+  <module: Mod> => ast::Decl::Mod(module),
+  <trait_: Trait> => ast::Decl::Trait(trait_),
+  <svc: Svc> => ast::Decl::Svc(svc),
+  <use_: Use> => ast::Decl::Use(use_),
+};
+
+pub Unit: Vec<ast::Decl> = <decls: Decl*> => decls;
+
+

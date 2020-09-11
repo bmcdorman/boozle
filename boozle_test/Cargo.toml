@@ -1,0 +1,21 @@
+[package]
+name = "boozle_test"
+version = "0.1.0"
+authors = ["beta <bmcdorman@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+actix = "0.10.0-alpha.3"
+boozle = { path = "../boozle" }
+boozle-identity = { path = "../boozle-identity" }
+boozle-parser = { path = "../boozle-parser" }
+boozle_derive = { path = "../boozle_derive" }
+actix-rt = "1.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+boozle-gen-rust = { path = "../boozle-gen-rust" }
+
+[build-dependencies]
+

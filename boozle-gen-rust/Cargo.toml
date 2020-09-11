@@ -1,0 +1,19 @@
+[package]
+name = "boozle-gen-rust"
+version = "0.1.0"
+authors = ["Braden McDorman <bmcdorman@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+
+[dependencies]
+quote = "1"
+syn = "1"
+proc-macro2 = "1"
+sha2 = "0.9.1"
+digest = "0.9"
+
+boozle-gen = { path = "../boozle-gen" }
+boozle-parser = { path = "../boozle-parser" }

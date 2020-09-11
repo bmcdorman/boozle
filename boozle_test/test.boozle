@@ -1,0 +1,5 @@
+trait Test {
+  fn test(test: u32) -> u32;
+}
+
+svc test: Test;

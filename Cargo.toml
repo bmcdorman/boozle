@@ -1,0 +1,13 @@
+[workspace]
+
+members = [
+    "boozle",
+    "boozle_derive",
+    "boozle_test",
+    "boozle-parser",
+    "boozle-gen",
+    "boozle-gen-rust",
+    "boozle-ir",
+    "boozle-identity",
+    "boozle-actor",
+]
