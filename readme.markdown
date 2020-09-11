@@ -9,7 +9,7 @@ This project was inspired by years of working in various RPC frameworks and alwa
   - Many generators do not generate idiomatic code for the target language (e.g., gRPC C++). Calling a method on a remote object should feel like calling a method on a local one.
   - Many RPC frameworks are closely coupled to their transport (e.g., gRPC). What if I want to talk to a device over USB?
   - Many RPC frameworks encourage a strict client-server design. What if I want several nodes to seamlessly work together?
-  - No Cap'n Proto implementation implements Level 3 or 4 of their [RPC specification](https://capnproto.org/rpc.html). What a shame!
+  - No Cap'n Proto implementation implements Level 3 or 4 of their [RPC specification](https://capnproto.org/rpc.html).
 
 
 Boozle has several features (some unique):
