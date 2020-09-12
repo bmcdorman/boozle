@@ -308,17 +308,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "boozle_derive"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "proc-macro2",
- "quote",
- "sha2 0.9.1",
- "syn",
-]
-
-[[package]]
 name = "boozle_test"
 version = "0.1.0"
 dependencies = [
@@ -328,9 +317,9 @@ dependencies = [
  "boozle-gen-rust",
  "boozle-identity",
  "boozle-parser",
- "boozle_derive",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]

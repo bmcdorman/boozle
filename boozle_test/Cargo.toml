@@ -11,8 +11,8 @@ actix = "0.10.0-alpha.3"
 boozle = { path = "../boozle" }
 boozle-identity = { path = "../boozle-identity" }
 boozle-parser = { path = "../boozle-parser" }
-boozle_derive = { path = "../boozle_derive" }
 actix-rt = "1.1"
+tokio = { version = "0.2", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 boozle-gen-rust = { path = "../boozle-gen-rust" }

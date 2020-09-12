@@ -1,26 +1,80 @@
 use actix::prelude::*;
+use tokio::sync::{broadcast, oneshot};
 
-use std::collections::HashMap;
+use std::collections::{HashMap};
 
-#[derive(Debug)]
-pub struct Error {}
-
-#[derive(Message)]
-#[rtype(result = "Result<InjectResult, Error>")]
-pub struct Inject<M>
+enum Entry<M>
 where
   M: Message + Send,
   M::Result: Send,
 {
-  pub recipient: Recipient<M>,
+  Unresolved(broadcast::Sender<Recipient<M>>),
+  Resolved(Recipient<M>),
 }
 
-pub struct InjectResult {
+#[derive(Debug)]
+pub enum InsertUnresolvedError {
+  AlreadyExists,
+}
+
+#[derive(Message, Debug)]
+#[rtype(result = "Result<InsertUnresolvedResult, InsertUnresolvedError>")]
+pub struct InsertUnresolved {
   pub id: u64,
 }
 
-#[derive(Message)]
-#[rtype(result = "Result<RouteResult<M>, Error>")]
+#[derive(Debug)]
+pub struct InsertUnresolvedResult;
+
+#[derive(Debug)]
+pub enum ResolveError {
+  NotFound,
+  AlreadyResolved,
+}
+
+#[derive(Message, Debug)]
+#[rtype(result = "Result<ResolveResult, ResolveError>")]
+pub struct Resolve<M>
+where
+  M: Message + Send,
+  M::Result: Send,
+{
+  pub id: u64,
+  pub recipient: Recipient<M>,
+}
+
+#[derive(Debug)]
+pub struct ResolveResult;
+
+#[derive(Debug)]
+pub enum InsertResolvedError {
+  AlreadyExists,
+}
+
+#[derive(Message, Debug)]
+#[rtype(result = "Result<InsertResolvedResult, InsertResolvedError>")]
+pub struct InsertResolved<M>
+where
+  M: Message + Send,
+  M::Result: Send,
+{
+  pub id: u64,
+  pub recipient: Recipient<M>,
+}
+
+#[derive(Debug)]
+pub struct InsertResolvedResult;
+
+#[derive(Debug)]
+pub enum RouteError {
+  NotFound,
+  Unresolvable,
+  SendFailure,
+  Internal
+}
+
+#[derive(Message, Debug)]
+#[rtype(result = "Result<RouteResult<M>, RouteError>")]
 pub struct Route<M>
 where
   M: 'static + Message + Send,
@@ -30,6 +84,7 @@ where
   pub message: M,
 }
 
+#[derive(Debug)]
 pub struct RouteResult<M>
 where
   M: Message + Send,
@@ -38,9 +93,14 @@ where
   pub result: M::Result,
 }
 
-#[derive(Message)]
-#[rtype(result = "Result<EjectResult<M>, Error>")]
-pub struct Eject<M>
+#[derive(Debug)]
+pub enum RemoveError {
+  NotFound,
+}
+
+#[derive(Message, Debug)]
+#[rtype(result = "Result<RemoveResult<M>, RemoveError>")]
+pub struct Remove<M>
 where
   M: 'static + Message + Send,
   M::Result: Send,
@@ -49,7 +109,8 @@ where
   pub phantom: std::marker::PhantomData<M>,
 }
 
-pub struct EjectResult<M>
+#[derive(Debug)]
+pub struct RemoveResult<M>
 where
   M: Message + Send,
   M::Result: Send,
@@ -62,19 +123,17 @@ where
   M: Message + Send,
   M::Result: Send,
 {
-  iter: u64,
-  recipients: HashMap<u64, Recipient<M>>,
+  entries: HashMap<u64, Entry<M>>,
 }
 
 impl<M> Pool<M>
 where
-  M: Message + Send,
-  M::Result: Send,
+  M: 'static + Message + Send,
+  M::Result: Send
 {
   pub fn new() -> Self {
     Self {
-      iter: 0,
-      recipients: HashMap::new(),
+      entries: HashMap::new()
     }
   }
 }
@@ -87,33 +146,83 @@ where
   type Context = Context<Self>;
 }
 
-impl<M> Handler<Inject<M>> for Pool<M>
+impl<M> Handler<InsertUnresolved> for Pool<M>
 where
   M: 'static + Message + Send,
   M::Result: Send,
 {
-  type Result = Result<InjectResult, Error>;
+  type Result = Result<InsertUnresolvedResult, InsertUnresolvedError>;
 
-  fn handle(&mut self, msg: Inject<M>, _: &mut Context<Self>) -> Self::Result {
-    self.iter += 1;
-
-    self.recipients.insert(self.iter, msg.recipient);
-
-    Ok(InjectResult { id: self.iter })
+  fn handle(&mut self, msg: InsertUnresolved, _: &mut Context<Self>) -> Self::Result {
+    if self.entries.contains_key(&msg.id) {
+      return Err(InsertUnresolvedError::AlreadyExists);
+    }
+    let (tx, _) = broadcast::channel(1);
+    self.entries.insert(msg.id, Entry::Unresolved(tx));
+    Ok(InsertUnresolvedResult {})
   }
 }
 
-impl<M> Handler<Eject<M>> for Pool<M>
+impl<M> Handler<Resolve<M>> for Pool<M>
 where
   M: 'static + Message + Send,
   M::Result: Send,
 {
-  type Result = Result<EjectResult<M>, Error>;
+  type Result = Result<ResolveResult, ResolveError>;
 
-  fn handle(&mut self, msg: Eject<M>, _: &mut Context<Self>) -> Self::Result {
-    Ok(EjectResult {
-      recipient: self.recipients.remove(&msg.id),
-    })
+  fn handle(&mut self, msg: Resolve<M>, _: &mut Context<Self>) -> Self::Result {
+    let recipient = msg.recipient;
+    let prev = self.entries.insert(msg.id, Entry::Resolved(recipient.clone()));
+
+    if let Some(entry) = prev {
+      if let Entry::Unresolved(tx) = entry {
+        let _ = tx.send(recipient);
+        Ok(ResolveResult {})
+      } else {
+        self.entries.insert(msg.id, entry);
+        Err(ResolveError::AlreadyResolved)
+      }
+    } else {
+      self.entries.remove(&msg.id);
+      Err(ResolveError::NotFound)
+    }
+  }
+}
+
+impl<M> Handler<InsertResolved<M>> for Pool<M>
+where
+  M: 'static + Message + Send,
+  M::Result: Send,
+{
+  type Result = Result<InsertResolvedResult, InsertResolvedError>;
+
+  fn handle(&mut self, msg: InsertResolved<M>, _: &mut Context<Self>) -> Self::Result {
+    if self.entries.contains_key(&msg.id) {
+      return Err(InsertResolvedError::AlreadyExists);
+    }
+
+    self.entries.insert(msg.id, Entry::Resolved(msg.recipient));
+    Ok(InsertResolvedResult {})
+  }
+}
+
+impl<M> Handler<Remove<M>> for Pool<M>
+where
+  M: 'static + Message + Send,
+  M::Result: Send,
+{
+  type Result = Result<RemoveResult<M>, RemoveError>;
+
+  fn handle(&mut self, msg: Remove<M>, _: &mut Context<Self>) -> Self::Result {
+    match self.entries.remove(&msg.id) {
+      Some(entry) => Ok(RemoveResult {
+        recipient: match entry {
+          Entry::Unresolved(_) => None,
+          Entry::Resolved(recipient) => Some(recipient),
+        },
+      }),
+      None => Err(RemoveError::NotFound),
+    }
   }
 }
 
@@ -122,16 +231,49 @@ where
   M: 'static + Message + Send,
   M::Result: Send,
 {
-  type Result = ResponseActFuture<Self, Result<RouteResult<M>, Error>>;
+  type Result = ResponseActFuture<Self, Result<RouteResult<M>, RouteError>>;
 
   fn handle(&mut self, msg: Route<M>, _: &mut Context<Self>) -> Self::Result {
-    let recipient = self.recipients.get(&msg.id).unwrap();
-    let future = recipient.send(msg.message);
-    let future = actix::fut::wrap_future::<_, Self>(future);
-    let wrap = future.map(|result, _actor, _ctx| match result {
-      Ok(result) => Ok(RouteResult { result }),
-      Err(_err) => Err(Error {}),
-    });
-    Box::pin(wrap)
+    let (tx, rx) = oneshot::channel();
+    let Route { id, message } = msg;
+
+    if let Some(entry) = self.entries.get(&id) {
+      match entry {
+        Entry::Resolved(recipient) => {
+          let arecipient = recipient.clone();
+          actix::spawn(async move {
+            let _ = match arecipient.send(message).await {
+              Ok(res) => tx.send(Ok(RouteResult {result: res })),
+              Err(_) => tx.send(Err(RouteError::SendFailure))
+            };
+          });
+        },
+        Entry::Unresolved(resolve_tx) => {
+          let mut rx = resolve_tx.subscribe();
+          actix::spawn(async move {
+            let _ = match rx.recv().await {
+              Ok(recipient) => {
+                match recipient.send(message).await {
+                  Ok(res) => tx.send(Ok(RouteResult { result: res })),
+                  Err(_) => tx.send(Err(RouteError::SendFailure))
+                }
+              },
+              Err(_) => tx.send(Err(RouteError::Unresolvable))
+            };
+          });
+        }
+      }
+    } else {
+      let _ = tx.send(Err(RouteError::NotFound));
+    }
+
+    let fut = async move {
+      match rx.await {
+        Ok(res) => res,
+        Err(_) => Err(RouteError::Internal)
+      }
+    }.into_actor(self);
+
+    Box::pin(fut)
   }
 }

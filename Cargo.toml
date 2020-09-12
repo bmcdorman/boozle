@@ -2,7 +2,6 @@
 
 members = [
     "boozle",
-    "boozle_derive",
     "boozle_test",
     "boozle-parser",
     "boozle-gen",

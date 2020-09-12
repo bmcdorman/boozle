@@ -1,7 +1,6 @@
 pub mod multiplexer;
 pub mod channel;
 pub mod message;
-pub mod link;
 pub mod call;
 pub mod transport;
 pub mod node;
