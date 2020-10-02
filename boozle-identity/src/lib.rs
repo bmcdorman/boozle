@@ -36,7 +36,7 @@ impl<'de> serde::de::Visitor<'de> for PrivateKeyVisitor {
   }
   fn visit_bytes<E: serde::de::Error>(self, b: &[u8]) -> Result<Self::Value, E> {
     match PKey::private_key_from_pem(b) {
-      Ok(private_key) => Ok(private_key),
+      Ok(private_key) => Ok(private_key), 
       Err(_) => Err(serde::de::Error::invalid_value(
         serde::de::Unexpected::Bytes(b),
         &self,

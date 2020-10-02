@@ -1,9 +1,36 @@
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
-use bytes::Buf;
+pub mod req;
+pub mod res;
 
-pub fn write<T: Serialize>(value: &T) -> Vec<u8> {}
+pub use req::Req;
+pub use res::Res;
 
-pub fn try_read<T: Deserialize>(buf: &[u8]) -> Option<(usize, T)> {
-  let a = buf[0];
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Dir {
+  Req,
+  Res
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Msg {
+  pub dir: Dir,
+  pub data: Box<[u8]>
+}
+
+impl Msg {
+  pub fn req(data: Box<[u8]>) -> Self {
+    Self {
+      dir: Dir::Req,
+      data
+    }
+  }
+
+  pub fn res(data: Box<[u8]>) -> Self {
+    Self {
+      dir: Dir::Res,
+      data
+    }
+  }
+}
+
