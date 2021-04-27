@@ -1,3 +1,5 @@
+# This project hasn't been updated in a while. I'll get back to it eventually, but I've been quite busy with work... If you're interested in helping out, please reach out!
+
 # Boozle
 
 *This project is in the early stages of development. It is not currently usable, and may not even compile.*
